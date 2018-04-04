@@ -35,7 +35,7 @@ public class TimeTracker {
     }
     
     
-    FileUtils.writeLines(new File("/tmp/data1.out"), week.print());
+    FileUtils.writeLines(new File("/tmp/data1.out"), year.print());
   }
   
   private static void start(LocalDate day, WorkWeek week, String time) throws NumberFormatException, IOException {
@@ -58,10 +58,18 @@ public class TimeTracker {
     public WorkYear parseYear() throws IOException {
       List<String> lines = FileUtils.readLines(new File("/tmp/data.out"));
       WorkYear year = new WorkYear();
-      WorkWeek week = new WorkWeek();
+      WorkWeek week = null;
       Integer weekNum = 0;
       for (String line : lines) {
-        if (StringUtils.startsWithAny(line, "Date", "---", "Week") || StringUtils.isBlank(line)) {
+        if (StringUtils.startsWith(line, "Work Week")) {
+          String[] split = StringUtils.split(line, " ");
+          weekNum = Integer.parseInt(split[2]);
+          week = new WorkWeek(weekNum);
+          year.addWeek(weekNum, week);
+          continue;
+        }
+        
+        if (StringUtils.startsWithAny(line, "Date", "---", "Week", "   ") || StringUtils.isBlank(line)) {
           continue;
         }
         String[] split = StringUtils.split(line, "|");
@@ -84,7 +92,6 @@ public class TimeTracker {
         week.addDay(parsedDate, day);
       }
 
-      year.addWeek(weekNum, week);
       
       return year;
     }
@@ -105,12 +112,22 @@ public class TimeTracker {
     public WorkWeek getWeek(Integer weekNum) {
       WorkWeek week = weeks.get(weekNum);
       if (week==null) {
-        week = new WorkWeek();
+        week = new WorkWeek(weekNum);
         weeks.put(weekNum, week);
         
       }
       
       return week;
+    }
+    
+    public List<String> print() throws IOException{
+      List<String> lines = new ArrayList<String>();
+      
+      for (Integer weekNum : weeks.keySet()) {
+        lines.add("");
+        lines.addAll(weeks.get(weekNum).print());
+      }
+      return lines;
     }
   }
   
@@ -154,6 +171,11 @@ public class TimeTracker {
     Map<Integer, WorkDay> days = new TreeMap<Integer, WorkDay>();
     private static final String SEPARATOR = "---------------------------------------------------";
     private static final String HEADER = "Date       |   Time in  |   Time out   | Hours";
+    Integer weekNum;
+    
+    public WorkWeek(Integer weekNum) {
+      this.weekNum = weekNum;
+    }
 
     public void addDay(LocalDate date, WorkDay day) {
       days.put(date.getDayOfWeek().getValue(), day);
@@ -173,14 +195,18 @@ public class TimeTracker {
 
     public List<String> print() throws IOException {
       List<String> lines = new ArrayList<String>();
-      lines.add(HEADER);
+      lines.add("Work Week " + weekNum);
       lines.add(SEPARATOR);
       for (WorkDay day : days.values()) {
         lines.add(day.print());
       }
-      lines.add("");
-      lines.add("Week total: " + getHours());
       lines.add(SEPARATOR);
+      StringBuilder totalBuilder = new StringBuilder();
+      for (int i = 0; i<40; i++) {
+        totalBuilder.append(" ");
+      }
+      totalBuilder.append("total: " + getHours());
+      lines.add(totalBuilder.toString());
       return lines;
     }
   }
