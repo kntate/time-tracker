@@ -2,12 +2,14 @@ package com.uline.utility;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -20,44 +22,96 @@ public class TimeTracker {
 
   public static void main(String... args) throws IOException {
 
-    WorkYear year = new FileParser().parseYear();
     LocalDate today = LocalDate.now();
-    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear(); 
+    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
     int weekNum = today.get(woy);
-    WorkWeek week = year.getWeek(weekNum);
-    
-    if (args[0].equals("start")) {
-      start(today, week, args[1]);
-    } else if (args[0].equals("stop")) {
-      stop(today, week, args[1]);
-    } else if (args[0].equals("yesterday")) {
-      yesterday(today, week, args[1], args[2]);
+    WorkYear year = new FileParser().parseYear(weekNum);
+    WorkWeek currentWeek = year.getWeek(weekNum);
+
+    if (args.length > 0) {
+      if (args[0].equals("start")) {
+        start(today, currentWeek, args[1]);
+      } else if (args[0].equals("stop")) {
+        stop(today, currentWeek, args[1]);
+      } else if (args[0].equals("yesterday")) {
+        yesterday(today, currentWeek, args[1], args[2]);
+      } else if (args[0].equals("today")) {
+        today(today, currentWeek, args[1], args[2]);
+      } else if (args[0].equals("input")) {
+        input(args[1] + "/" + today.getYear(), year, args[2], args[3]);
+      }
     }
-    
-    
-    FileUtils.writeLines(new File("/tmp/data1.out"), year.print());
+
+    List<String> lines = year.print();
+    for (String line : lines) {
+      System.out.println(line);
+    }
+    FileUtils.writeLines(new File("/tmp/data-" + today.getYear() + ".out"), lines);
+  }
+
+  private static String formatDouble(Double num) {
+    DecimalFormat df = new DecimalFormat("#.00");
+    String numStr = df.format(num);
+    if (num < 10) {
+      numStr = "0" + numStr;
+    }
+    return numStr;
   }
   
+  private static String formatDouble4Digit(Double num) {
+    DecimalFormat df = new DecimalFormat("#.00");
+    String numStr = df.format(num);
+    if (num < 10) {
+      numStr = " " + numStr;
+    } 
+    if (num < 100) {
+      numStr = " " + numStr;
+    } 
+    if (num < 1000) {
+      numStr = " " + numStr;
+    }
+    return numStr;
+  }
+
   private static void start(LocalDate day, WorkWeek week, String time) throws NumberFormatException, IOException {
-    
+
     week.addDay(day, new WorkDay(day, FileParser.parseTime(time), null));
   }
-  
-  private static void stop(LocalDate day, WorkWeek week, String time) throws NumberFormatException, IOException {
+
+  private static void stop(LocalDate day, WorkWeek week, String time) throws IOException {
     WorkDay workDay = week.getDay(day);
     workDay.endDay(FileParser.parseTime(time));
   }
-  
-  private static void yesterday(LocalDate today, WorkWeek week, String inTime, String outTime) throws NumberFormatException, IOException {
+
+  private static void yesterday(LocalDate today, WorkWeek week, String inTime, String outTime) throws IOException {
     LocalDate yesterday = today.minusDays(1);
-    WorkDay workDay = new WorkDay(yesterday, FileParser.parseTime(inTime),FileParser.parseTime(outTime));
+    WorkDay workDay = new WorkDay(yesterday, FileParser.parseTime(inTime), FileParser.parseTime(outTime));
     week.addDay(yesterday, workDay);
   }
 
+  private static void today(LocalDate today, WorkWeek week, String inTime, String outTime) throws IOException {
+    WorkDay workDay = new WorkDay(today, FileParser.parseTime(inTime), FileParser.parseTime(outTime));
+    week.addDay(today, workDay);
+  }
+
+  private static void input(String dateStr, WorkYear year, String inTime, String outTime)
+      throws NumberFormatException, IOException {
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    LocalDate parsedDate = LocalDate.parse(dateStr.trim(), formatter);
+    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
+    Integer weekNum = parsedDate.get(woy);
+    WorkWeek week = year.getWeek(weekNum);
+
+    WorkDay workDay = new WorkDay(parsedDate, FileParser.parseTime(inTime), FileParser.parseTime(outTime));
+    week.addDay(parsedDate, workDay);
+
+    year.addWeek(weekNum, week);
+  }
+
   private static class FileParser {
-    public WorkYear parseYear() throws IOException {
-      List<String> lines = FileUtils.readLines(new File("/tmp/data.out"));
-      WorkYear year = new WorkYear();
+    public WorkYear parseYear(Integer currentWeekNum) throws IOException {
+      List<String> lines = FileUtils.readLines(new File("/tmp/data.out"), Charset.defaultCharset());
+      WorkYear year = new WorkYear(currentWeekNum);
       WorkWeek week = null;
       Integer weekNum = 0;
       for (String line : lines) {
@@ -68,23 +122,21 @@ public class TimeTracker {
           year.addWeek(weekNum, week);
           continue;
         }
-        
-        if (StringUtils.startsWithAny(line, "Date", "---", "Week", "   ") || StringUtils.isBlank(line)) {
+
+        if (StringUtils.startsWithAny(line, "Date", "---", "Week", "   ", "Average", "Year", " ") || StringUtils.isBlank(line)) {
           continue;
         }
         String[] split = StringUtils.split(line, "|");
         String dateStr = split[0].trim();
         String inTimeStr = split[1].trim();
-                
+
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE MM/dd/yyyy");
         LocalDate parsedDate = LocalDate.parse(dateStr, formatter);
-        TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear(); 
-        weekNum = parsedDate.get(woy);
-        
+
         TimeInstance inTime = parseTime(inTimeStr);
-        
+
         TimeInstance outTime = null;
-        if (split.length >2 ){
+        if (split.length > 2) {
           String outTimeStr = split[2].trim();
           outTime = parseTime(outTimeStr);
         }
@@ -92,7 +144,7 @@ public class TimeTracker {
         week.addDay(parsedDate, day);
       }
 
-      
+
       return year;
     }
 
@@ -102,35 +154,60 @@ public class TimeTracker {
     }
   }
 
-  private static class WorkYear{
-    Map<Integer, WorkWeek> weeks = new LinkedHashMap<Integer, WorkWeek>();
-    
+  private static class WorkYear {
+    Map<Integer, WorkWeek> weeks = new TreeMap<Integer, WorkWeek>(Collections.reverseOrder());
+    Integer currentWeek;
+
+    public WorkYear(Integer currentWeek) {
+      this.currentWeek = currentWeek;
+    }
+
     public void addWeek(Integer weekNum, WorkWeek week) {
       weeks.put(weekNum, week);
     }
     
     public WorkWeek getWeek(Integer weekNum) {
       WorkWeek week = weeks.get(weekNum);
-      if (week==null) {
+      if (week == null) {
         week = new WorkWeek(weekNum);
         weeks.put(weekNum, week);
-        
+
       }
-      
+
       return week;
     }
-    
-    public List<String> print() throws IOException{
-      List<String> lines = new ArrayList<String>();
+
+    public List<String> print() {
+      List<String> tmpLines = new ArrayList<String>();
       
+      String separator = StringUtils.repeat("-", 39);
+
+      Double totalHours = 0d;
+      Double totalHoursExcludingCurrent = 0d;
+      Integer numWeeks = 0;
       for (Integer weekNum : weeks.keySet()) {
-        lines.add("");
-        lines.addAll(weeks.get(weekNum).print());
+        tmpLines.add("");
+        WorkWeek week = weeks.get(weekNum);
+        tmpLines.addAll(week.print());
+        totalHours += week.getHours();
+        if (!week.getWeekNum().equals(currentWeek)) {
+          totalHoursExcludingCurrent += week.getHours();
+          numWeeks++;
+        }
       }
+
+      List<String> lines = new ArrayList<String>();
+      lines.add(separator);
+      lines.add("Year Total Hours         |  " + formatDouble4Digit(totalHours) + "   |");
+      lines.add("Average Hours Per Week   |  " + formatDouble4Digit(totalHoursExcludingCurrent / numWeeks) + "   |");
+      lines.add("Year Total Full Weeks    |     " + numWeeks + "      |");
+      lines.add(separator);
+      lines.add("");
+      lines.addAll(tmpLines);
       return lines;
     }
   }
-  
+
   private static class WorkDay {
     TimeInstance inTime;
     TimeInstance outTime;
@@ -146,15 +223,19 @@ public class TimeTracker {
     public void endDay(TimeInstance outTime) {
       this.outTime = outTime;
     }
-    
-    public String print() throws IOException {
+
+    public String print() {
       DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE MM/dd/yyyy");
       String dateText = date.format(formatter);
+      int pad = 22 - dateText.length();
+      for (int i = 0; i < pad; i++) {
+        dateText += " ";
+      }
       if (outTime == null) {
-        return dateText + " |   " + inTime.print() ;
+        return dateText + " |   " + inTime.print();
       } else {
-        return dateText + " |   " + inTime.print() + "    |   "
-            + outTime.print() + "      | " + getHours();
+        return dateText + " |   " + inTime.print() + "    |   " + outTime.print() + "     | " + formatDouble(getHours())
+            + "  |";
       }
     }
 
@@ -169,10 +250,9 @@ public class TimeTracker {
 
   private static class WorkWeek {
     Map<Integer, WorkDay> days = new TreeMap<Integer, WorkDay>();
-    private static final String SEPARATOR = "---------------------------------------------------";
-    private static final String HEADER = "Date       |   Time in  |   Time out   | Hours";
+    private static final String SEPARATOR = "------------------------------------------------------------";
     Integer weekNum;
-    
+
     public WorkWeek(Integer weekNum) {
       this.weekNum = weekNum;
     }
@@ -180,9 +260,13 @@ public class TimeTracker {
     public void addDay(LocalDate date, WorkDay day) {
       days.put(date.getDayOfWeek().getValue(), day);
     }
-    
+
     public WorkDay getDay(LocalDate date) {
       return days.get(date.getDayOfWeek().getValue());
+    }
+
+    public Integer getWeekNum() {
+      return weekNum;
     }
 
     public double getHours() {
@@ -193,28 +277,31 @@ public class TimeTracker {
       return hours;
     }
 
-    public List<String> print() throws IOException {
+    public List<String> print() {
       List<String> lines = new ArrayList<String>();
+      lines.add("");
       lines.add("Work Week " + weekNum);
       lines.add(SEPARATOR);
       for (WorkDay day : days.values()) {
         lines.add(day.print());
       }
       lines.add(SEPARATOR);
-      StringBuilder totalBuilder = new StringBuilder();
-      for (int i = 0; i<40; i++) {
+      StringBuilder totalBuilder = new StringBuilder("Week Total");
+      for (int i = 0; i < 40; i++) {
         totalBuilder.append(" ");
       }
-      totalBuilder.append("total: " + getHours());
+      totalBuilder.append("| " + formatDouble(getHours()) + "  |");
       lines.add(totalBuilder.toString());
+      lines.add(SEPARATOR);
       return lines;
     }
   }
 
   private static class TimeInstance {
-     double quarterCount;
-     
-     int hour, minute;
+    double quarterCount;
+
+    Integer hour;
+    Integer minute;
 
 
     public TimeInstance(int hour, int minute) throws IOException {
@@ -236,9 +323,18 @@ public class TimeTracker {
       quarterCount = hour * 4 + additionalQuarters;
 
     }
-    
+
     public String print() {
-      return "" + hour + ":" + minute;
+
+      return String.format("%s:%s", formatInt(hour), formatInt(minute));
+    }
+
+    private String formatInt(Integer num) {
+      String numStr = num.toString();
+      if (num < 10) {
+        numStr = "0" + numStr;
+      }
+      return numStr;
     }
   }
 
