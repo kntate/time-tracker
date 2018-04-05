@@ -20,7 +20,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class TimeTracker {
 
-  public static void main(String... args) throws IOException {
+  private static void main(String... args) throws IOException {
 
     LocalDate today = LocalDate.now();
     TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
@@ -48,8 +48,16 @@ public class TimeTracker {
     }
     FileUtils.writeLines(new File("/tmp/data-" + today.getYear() + ".out"), lines);
   }
+  
+  public static WorkYear getYear() throws IOException {
+    LocalDate today = LocalDate.now();
+    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
+    int weekNum = today.get(woy);
+    WorkYear year = new FileParser().parseYear(weekNum);
+    return year;
+  }
 
-  private static String formatDouble(Double num) {
+  public static String formatDouble(Double num) {
     DecimalFormat df = new DecimalFormat("#.00");
     String numStr = df.format(num);
     if (num < 10) {
@@ -58,7 +66,7 @@ public class TimeTracker {
     return numStr;
   }
   
-  private static String formatDouble4Digit(Double num) {
+  public static String formatDouble4Digit(Double num) {
     DecimalFormat df = new DecimalFormat("#.00");
     String numStr = df.format(num);
     if (num < 10) {
@@ -73,28 +81,28 @@ public class TimeTracker {
     return numStr;
   }
 
-  private static void start(LocalDate day, WorkWeek week, String time) throws NumberFormatException, IOException {
+  public static void start(LocalDate day, WorkWeek week, String time) throws NumberFormatException, IOException {
 
     week.addDay(day, new WorkDay(day, FileParser.parseTime(time), null));
   }
 
-  private static void stop(LocalDate day, WorkWeek week, String time) throws IOException {
+  public static void stop(LocalDate day, WorkWeek week, String time) throws IOException {
     WorkDay workDay = week.getDay(day);
     workDay.endDay(FileParser.parseTime(time));
   }
 
-  private static void yesterday(LocalDate today, WorkWeek week, String inTime, String outTime) throws IOException {
+  public static void yesterday(LocalDate today, WorkWeek week, String inTime, String outTime) throws IOException {
     LocalDate yesterday = today.minusDays(1);
     WorkDay workDay = new WorkDay(yesterday, FileParser.parseTime(inTime), FileParser.parseTime(outTime));
     week.addDay(yesterday, workDay);
   }
 
-  private static void today(LocalDate today, WorkWeek week, String inTime, String outTime) throws IOException {
+  public static void today(LocalDate today, WorkWeek week, String inTime, String outTime) throws IOException {
     WorkDay workDay = new WorkDay(today, FileParser.parseTime(inTime), FileParser.parseTime(outTime));
     week.addDay(today, workDay);
   }
 
-  private static void input(String dateStr, WorkYear year, String inTime, String outTime)
+  public static void input(String dateStr, WorkYear year, String inTime, String outTime)
       throws NumberFormatException, IOException {
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
     LocalDate parsedDate = LocalDate.parse(dateStr.trim(), formatter);
@@ -107,8 +115,21 @@ public class TimeTracker {
 
     year.addWeek(weekNum, week);
   }
+  
+  public static void addPto(String dateStr, WorkYear year, Integer hours) {
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    LocalDate parsedDate = LocalDate.parse(dateStr.trim(), formatter);
+    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
+    Integer weekNum = parsedDate.get(woy);
+    WorkWeek week = year.getWeek(weekNum);
 
-  private static class FileParser {
+    WorkDay workDay = new WorkDay(parsedDate, new WorkInterval(hours.doubleValue()));
+    week.addDay(parsedDate, workDay);
+
+    year.addWeek(weekNum, week);
+  }
+
+  public static class FileParser {
     public WorkYear parseYear(Integer currentWeekNum) throws IOException {
       List<String> lines = FileUtils.readLines(new File("/tmp/data.out"), Charset.defaultCharset());
       WorkYear year = new WorkYear(currentWeekNum);
@@ -154,7 +175,7 @@ public class TimeTracker {
     }
   }
 
-  private static class WorkYear {
+  static class WorkYear {
     Map<Integer, WorkWeek> weeks = new TreeMap<Integer, WorkWeek>(Collections.reverseOrder());
     Integer currentWeek;
 
@@ -207,48 +228,112 @@ public class TimeTracker {
       return lines;
     }
   }
-
-  private static class WorkDay {
+  
+  private static class WorkInterval{
     TimeInstance inTime;
     TimeInstance outTime;
-    LocalDate date;
-
-    public WorkDay(LocalDate date, TimeInstance inTime, TimeInstance outTime) {
+    boolean isPto;
+    Double hours = 0d;
+    boolean isOpen;
+        
+    public WorkInterval(TimeInstance inTime, TimeInstance outTime) {
       super();
       this.inTime = inTime;
       this.outTime = outTime;
+      isPto = false;
+      
+      if (outTime == null) {
+        isOpen = true;
+      } else {
+        isOpen = false;
+        hours = (outTime.quarterCount - inTime.quarterCount) / 4;
+      }
+    }
+    
+    public WorkInterval(Double hours) {
+      this.hours = hours;
+      isPto = true;
+      isOpen = false;
+    }
+    
+    public void close(TimeInstance outTime) {
+      this.outTime = outTime;
+      hours = (outTime.quarterCount - inTime.quarterCount) / 4;
+    }
+
+    public boolean isOpen() {
+      return isOpen;
+    }
+    
+    public Double getHours() {
+      return hours;
+    }
+        
+  }
+
+  private static class WorkDay {
+
+    LocalDate date;
+    List<WorkInterval> workIntervals = new ArrayList<WorkInterval>();
+
+    public WorkDay(LocalDate date, TimeInstance inTime, TimeInstance outTime) {
+      workIntervals.add(new WorkInterval(inTime, outTime));
       this.date = date;
+    }
+    
+    public WorkDay(LocalDate date, WorkInterval ptoTime) {
+      workIntervals.add(ptoTime);
+      this.date = date;
+    }
+    
+    public void addIntervals(List<WorkInterval> intervals) {
+      workIntervals.addAll(intervals);
+    }
+
+    public List<WorkInterval> getWorkIntervals() {
+      return workIntervals;
     }
 
     public void endDay(TimeInstance outTime) {
-      this.outTime = outTime;
+      WorkInterval workInterval = workIntervals.get(workIntervals.size() - 1);
+      workInterval.close(outTime);
     }
 
-    public String print() {
+    public List<String> print() {
       DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE MM/dd/yyyy");
       String dateText = date.format(formatter);
-      int pad = 22 - dateText.length();
-      for (int i = 0; i < pad; i++) {
-        dateText += " ";
+      dateText += StringUtils.repeat(" ", 22 - dateText.length());
+      
+      List<String> lines = new ArrayList<String>();
+      for (WorkInterval workInterval : workIntervals) {
+        String line;
+        if (workInterval.isOpen) {
+          line =  dateText + " |   " + workInterval.inTime.print();
+        } else if (workInterval.isPto){
+          line = dateText + " |    PTO     |    PTO      | "
+              + formatDouble(workInterval.getHours()) + "  |";
+        }   else {
+          line = dateText + " |   " + workInterval.inTime.print() + "    |   " + workInterval.outTime.print() + "     | "
+              + formatDouble(workInterval.getHours()) + "  |";
+        }
+        lines.add(line);
+        dateText = StringUtils.repeat(" ", dateText.length());
       }
-      if (outTime == null) {
-        return dateText + " |   " + inTime.print();
-      } else {
-        return dateText + " |   " + inTime.print() + "    |   " + outTime.print() + "     | " + formatDouble(getHours())
-            + "  |";
-      }
+      
+      return lines;
     }
-
+    
     public double getHours() {
-      if (outTime == null) {
-        return 0;
+      double hours = 0;
+      for (WorkInterval workInterval : workIntervals) {
+        hours += workInterval.getHours();
       }
-
-      return (outTime.quarterCount - inTime.quarterCount) / 4;
+      return hours;
     }
+
   }
 
-  private static class WorkWeek {
+  public static class WorkWeek {
     Map<Integer, WorkDay> days = new TreeMap<Integer, WorkDay>();
     private static final String SEPARATOR = "------------------------------------------------------------";
     Integer weekNum;
@@ -258,7 +343,12 @@ public class TimeTracker {
     }
 
     public void addDay(LocalDate date, WorkDay day) {
-      days.put(date.getDayOfWeek().getValue(), day);
+      WorkDay workDay = getDay(date);
+      if (workDay == null) {
+        days.put(date.getDayOfWeek().getValue(), day);
+      } else {
+        workDay.addIntervals(day.getWorkIntervals());
+      }
     }
 
     public WorkDay getDay(LocalDate date) {
@@ -283,7 +373,7 @@ public class TimeTracker {
       lines.add("Work Week " + weekNum);
       lines.add(SEPARATOR);
       for (WorkDay day : days.values()) {
-        lines.add(day.print());
+        lines.addAll(day.print());
       }
       lines.add(SEPARATOR);
       StringBuilder totalBuilder = new StringBuilder("Week Total");
