@@ -118,6 +118,20 @@ public class TimeTrackerController {
     return getPrint(year);
   }
   
+  @GetMapping("/remove")
+  @ResponseBody
+  public String remove(@RequestParam(name="date", required=false) String date) throws IOException {
+ 
+    LocalDate today = LocalDate.now();
+    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
+    int weekNum = today.get(woy);
+    WorkYear year = new FileParser().parseYear(weekNum);
+    
+    TimeTracker.removeDay(date + "/" + today.getYear(), year);
+    year.printToFile();
+    return getPrint(year);
+  }
+  
   private String getPrint(WorkYear year) {
     StringBuilder strBuild = new StringBuilder();
     for (String string : year.print()) {

@@ -95,6 +95,17 @@ public class TimeTracker {
     year.addWeek(weekNum, week);
   }
   
+  public static void removeDay(String dateStr, WorkYear year) throws IOException {
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    LocalDate parsedDate = LocalDate.parse(dateStr.trim(), formatter);
+    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
+    Integer weekNum = parsedDate.get(woy);
+    WorkWeek week = year.getWeek(weekNum);
+
+    week.days.remove(parsedDate.getDayOfWeek().getValue());
+
+  }
+  
   public static void addPto(String dateStr, WorkYear year, Integer hours) {
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
     LocalDate parsedDate = LocalDate.parse(dateStr.trim(), formatter);
@@ -199,6 +210,7 @@ public class TimeTracker {
           totalHoursExcludingCurrent += week.getHours();
           numWeeks++;
         }
+        
       }
 
       List<String> lines = new ArrayList<String>();
