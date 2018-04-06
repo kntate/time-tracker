@@ -21,10 +21,7 @@ public class TimeTrackerController {
   @GetMapping("/print")
   @ResponseBody
   public String print() throws IOException {
-    LocalDate today = LocalDate.now();
-    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
-    int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum);
+    WorkYear year = getYear();
     
     year.printToFile();
     return getPrint(year);
@@ -34,13 +31,9 @@ public class TimeTrackerController {
   @ResponseBody
   public String yesterday(@RequestParam(name="inTime", required=false) String inTime, @RequestParam(name="outTime", required=false) String outTime) throws IOException {
  
-    LocalDate today = LocalDate.now();
-    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
-    int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum);
-    WorkWeek currentWeek = year.getWeek(weekNum);
+    WorkYear year = getYear();
     
-    TimeTracker.yesterday(today, currentWeek, inTime, outTime);
+    TimeTracker.yesterday(year.getToday(), year.getCurrentWorkWeek(), inTime, outTime);
     year.printToFile();
     return getPrint(year);
   }
@@ -49,13 +42,9 @@ public class TimeTrackerController {
   @ResponseBody
   public String today(@RequestParam(name="inTime", required=false) String inTime, @RequestParam(name="outTime", required=false) String outTime) throws IOException {
  
-    LocalDate today = LocalDate.now();
-    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
-    int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum);
-    WorkWeek currentWeek = year.getWeek(weekNum);
+    WorkYear year = getYear();
     
-    TimeTracker.today(today, currentWeek, inTime, outTime);
+    TimeTracker.today(year.getToday(), year.getCurrentWorkWeek(), inTime, outTime);
     year.printToFile();
     return getPrint(year);
   }
@@ -63,13 +52,9 @@ public class TimeTrackerController {
   @GetMapping("/input")
   @ResponseBody
   public String input(@RequestParam(name="inTime", required=false) String inTime, @RequestParam(name="outTime", required=false) String outTime,@RequestParam(name="date", required=false) String date) throws IOException {
- 
-    LocalDate today = LocalDate.now();
-    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
-    int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum);
+    WorkYear year = getYear();
     
-    TimeTracker.input(date + "/" + today.getYear(), year, inTime, outTime);
+    TimeTracker.input(date + "/" + year.getToday().getYear(), year, inTime, outTime);
     year.printToFile();
     return getPrint(year);
   }
@@ -78,13 +63,9 @@ public class TimeTrackerController {
   @ResponseBody
   public String start(@RequestParam(name="inTime", required=false) String inTime) throws IOException {
  
-    LocalDate today = LocalDate.now();
-    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
-    int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum);
-    WorkWeek currentWeek = year.getWeek(weekNum);
+    WorkYear year = getYear();
     
-    TimeTracker.start(today, currentWeek, inTime);
+    TimeTracker.start(year.getToday(), year.getCurrentWorkWeek(), inTime);
     year.printToFile();
     return getPrint(year);
   }
@@ -93,13 +74,9 @@ public class TimeTrackerController {
   @ResponseBody
   public String end(@RequestParam(name="outTime", required=false) String outTime) throws IOException {
  
-    LocalDate today = LocalDate.now();
-    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
-    int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum);
-    WorkWeek currentWeek = year.getWeek(weekNum);
+    WorkYear year = getYear();
     
-    TimeTracker.end(today, currentWeek, outTime);
+    TimeTracker.end(year.getToday(), year.getCurrentWorkWeek(), outTime);
     year.printToFile();
     return getPrint(year);
   }
@@ -108,12 +85,9 @@ public class TimeTrackerController {
   @ResponseBody
   public String pto(@RequestParam(name="date", required=false) String date, @RequestParam(name="hours", required=false) Integer hours) throws IOException {
  
-    LocalDate today = LocalDate.now();
-    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
-    int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum);
+    WorkYear year = getYear();
     
-    TimeTracker.addPto(date + "/" + today.getYear(), year, hours);
+    TimeTracker.addPto(date + "/" + year.getToday().getYear(), year, hours);
     year.printToFile();
     return getPrint(year);
   }
@@ -122,14 +96,19 @@ public class TimeTrackerController {
   @ResponseBody
   public String remove(@RequestParam(name="date", required=false) String date) throws IOException {
  
+    WorkYear year = getYear();
+    
+    TimeTracker.removeDay(date + "/" + year.getToday(), year);
+    year.printToFile();
+    return getPrint(year);
+  }
+  
+  private WorkYear getYear() throws IOException {
     LocalDate today = LocalDate.now();
     TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
     int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum);
-    
-    TimeTracker.removeDay(date + "/" + today.getYear(), year);
-    year.printToFile();
-    return getPrint(year);
+    WorkYear year = new FileParser().parseYear(weekNum, today);
+    return year;
   }
   
   private String getPrint(WorkYear year) {

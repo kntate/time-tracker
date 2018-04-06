@@ -29,7 +29,7 @@ public class TimeTracker {
     LocalDate today = LocalDate.now();
     TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
     int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum);
+    WorkYear year = new FileParser().parseYear(weekNum, today);
     return year;
   }
 
@@ -120,10 +120,10 @@ public class TimeTracker {
   }
 
   public static class FileParser {
-    public WorkYear parseYear(Integer currentWeekNum) throws IOException {
+    public WorkYear parseYear(Integer currentWeekNum, LocalDate today) throws IOException {
       FileUtils.copyFile(new File(DATA_FILE), new File(DATA_FILE + ".bak"));
       List<String> lines = FileUtils.readLines(new File(DATA_FILE), Charset.defaultCharset());
-      WorkYear year = new WorkYear(currentWeekNum);
+      WorkYear year = new WorkYear(currentWeekNum, today);
       WorkWeek week = null;
       Integer weekNum = 0;
       for (String line : lines) {
@@ -168,10 +168,12 @@ public class TimeTracker {
 
   static class WorkYear {
     Map<Integer, WorkWeek> weeks = new TreeMap<Integer, WorkWeek>(Collections.reverseOrder());
-    Integer currentWeek;
+    Integer currentWeekNum;
+    LocalDate today;
 
-    public WorkYear(Integer currentWeek) {
-      this.currentWeek = currentWeek;
+    public WorkYear(Integer currentWeek, LocalDate today) {
+      this.currentWeekNum = currentWeek;
+      this.today = today;
     }
 
     public void addWeek(Integer weekNum, WorkWeek week) {
@@ -189,6 +191,18 @@ public class TimeTracker {
       return week;
     }
     
+    public WorkWeek getCurrentWorkWeek() {
+      return getWeek(getCurrentWeekNum());
+    }
+    
+    public Integer getCurrentWeekNum() {
+      return currentWeekNum;
+    }
+
+    public LocalDate getToday() {
+      return today;
+    }
+
     public void printToFile() throws IOException {
       List<String> lines = print();
       FileUtils.writeLines(new File(DATA_FILE), lines);
@@ -206,7 +220,7 @@ public class TimeTracker {
         tmpLines.add("");
         tmpLines.addAll(week.print());
         totalHours += week.getHours();
-        if (!week.getWeekNum().equals(currentWeek) || week.hasCompletedDay(DayOfWeek.FRIDAY)) {
+        if (!week.getWeekNum().equals(getCurrentWeekNum()) || week.hasCompletedDay(DayOfWeek.FRIDAY)) {
           totalHoursExcludingCurrent += week.getHours();
           numWeeks++;
         }
