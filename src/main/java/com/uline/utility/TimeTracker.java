@@ -29,8 +29,7 @@ public class TimeTracker {
     LocalDate today = LocalDate.now();
     TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
     int weekNum = today.get(woy);
-    WorkYear year = new FileParser().parseYear(weekNum, today);
-    return year;
+    return new FileParser().parseYear(weekNum, today);
   }
 
   public static String formatDouble(Double num) {
