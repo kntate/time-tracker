@@ -98,7 +98,7 @@ public class TimeTrackerController {
  
     WorkYear year = getYear();
     
-    TimeTracker.removeDay(date + "/" + year.getToday(), year);
+    TimeTracker.removeDay(date + "/" + year.getToday().getYear(), year);
     year.printToFile();
     return getPrint(year);
   }
