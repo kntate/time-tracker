@@ -40,6 +40,9 @@ public class TimeTracker {
     if (num < 10) {
       numStr = "0" + numStr;
     }
+    if (num < 1) {
+      numStr = "0" + numStr;
+    }
     return numStr;
   }
 
@@ -69,6 +72,15 @@ public class TimeTracker {
       throw new InvalidActivityException("Error, cannot end a day that hasn't been started!");
     }
     workDay.endDay(FileParser.parseTime(time));
+  }
+
+  public static void removeTodayEnd(LocalDate day, WorkWeek week) throws IOException {
+    WorkDay workDay = week.getDay(day);
+    if (workDay == null) {
+      throw new InvalidActivityException("Error, cannot end a day that hasn't been started!");
+    }
+    workDay.removeLastClockout();
+
   }
 
   public static void yesterday(LocalDate today, WorkWeek week, String inTime, String outTime) throws IOException {
@@ -134,8 +146,8 @@ public class TimeTracker {
           continue;
         }
 
-        if (StringUtils.startsWithAny(line, "Date", "---", "Week", "   ", "Average", "Year", " ")
-            || StringUtils.isBlank(line)) {
+        if (StringUtils.startsWithAny(line, "Date", "---", "Week", "   ", "Average", "Year", " ", "Expected", "Ahead",
+            "Behind") || StringUtils.isBlank(line)) {
           continue;
         }
         String[] split = StringUtils.split(line, "|");
@@ -219,13 +231,16 @@ public class TimeTracker {
       Double totalHoursExcludingCurrent = 0d;
       Integer numWeeks = 0;
       for (WorkWeek week : weeks.values()) {
-        tmpLines.add("");
-        tmpLines.addAll(week.print());
-        totalHours += week.getHours();
+        boolean isOpenCurWeek = true;
         if (!week.getWeekNum().equals(getCurrentWeekNum()) || week.hasCompletedDay(DayOfWeek.FRIDAY)) {
           totalHoursExcludingCurrent += week.getHours();
           numWeeks++;
+          isOpenCurWeek = false;
         }
+        tmpLines.add("");
+        tmpLines.addAll(week.print(isOpenCurWeek));
+        totalHours += week.getHours();
+
 
       }
 
@@ -268,6 +283,12 @@ public class TimeTracker {
       isOpen = false;
     }
 
+    public void open() {
+      this.outTime = null;
+      this.isOpen = true;
+      this.hours = 0d;
+    }
+
     public void close(TimeInstance outTime) {
       this.outTime = outTime;
       isOpen = false;
@@ -288,6 +309,15 @@ public class TimeTracker {
     public WorkDay(LocalDate date, TimeInstance inTime, TimeInstance outTime) {
       workIntervals.add(new WorkInterval(inTime, outTime));
       this.date = date;
+    }
+
+    public void removeLastClockout() {
+      int size = workIntervals.size();
+      if (workIntervals.isEmpty()) {
+        throw new RuntimeException("No day found for today!");
+      }
+      WorkInterval lastInterval = workIntervals.get(size - 1);
+      lastInterval.open();
     }
 
     public WorkDay(LocalDate date, WorkInterval ptoTime) {
@@ -396,23 +426,51 @@ public class TimeTracker {
       return hours;
     }
 
-    public List<String> print() {
+    public List<String> print(boolean isOpenCurWeek) {
       List<String> lines = new ArrayList<String>();
       lines.add("");
       lines.add("Work Week " + weekNum);
       lines.add(SEPARATOR);
+      double numCompletedDays = 0;
       for (WorkDay day : days.values()) {
         lines.addAll(day.print());
+        if (day.isFinished()) {
+          numCompletedDays++;
+        }
       }
       lines.add(SEPARATOR);
-      StringBuilder totalBuilder = new StringBuilder("Week Total");
-      for (int i = 0; i < 40; i++) {
-        totalBuilder.append(" ");
-      }
+      StringBuilder totalBuilder = fill("Week Total", 40);
       totalBuilder.append("| " + formatDouble(getHours()) + "  |");
       lines.add(totalBuilder.toString());
       lines.add(SEPARATOR);
+      if (isOpenCurWeek) {
+        StringBuilder expected = fill("Expected Total", 36);
+        double expectedHours = numCompletedDays * 9.25;
+        expected.append("| " + formatDouble(expectedHours) + "  |");
+        lines.add(expected.toString());
+        lines.add(SEPARATOR);
+
+        boolean isAhead = expectedHours < getHours();
+        StringBuilder ahead = fill(isAhead ? "Ahead " : "Behind", 44);
+        if (isAhead) {
+          ahead.append("| " + formatDouble(getHours() - expectedHours) + "  |");
+        } else {
+          ahead.append("| " + formatDouble(expectedHours - getHours()) + "  |");
+        }
+
+        lines.add(ahead.toString());
+        lines.add(SEPARATOR);
+      }
       return lines;
+    }
+
+    private StringBuilder fill(String label, int size) {
+      StringBuilder totalBuilder = new StringBuilder(label);
+      for (int i = 0; i < size; i++) {
+        totalBuilder.append(" ");
+      }
+
+      return totalBuilder;
     }
   }
 
