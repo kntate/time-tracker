@@ -243,15 +243,30 @@ public class TimeTracker {
 
 
       }
+      
 
+
+      List<String> headerLines = new ArrayList<String>();
+      headerLines.add(separator);
+      headerLines.add("Year Total Hours         |  " + formatDouble4Digit(totalHours) + "   |");
+      headerLines.add("Average Hours Per Week   |  " + formatDouble4Digit(totalHoursExcludingCurrent / numWeeks) + "   |");
+      headerLines.add("Year Total Full Weeks    |     " + numWeeks + "      |");
+      headerLines.add(separator);
+      headerLines.add("");
+      
+      tmpLines.add(" ");
+      tmpLines.add(" ");
+      tmpLines.add(" ");
+      tmpLines.addAll(headerLines);
+      WorkWeek currentWeek = weeks.get(getCurrentWeekNum());
+      tmpLines.addAll(currentWeek.print(true));
+      
+      
       List<String> lines = new ArrayList<String>();
-      lines.add(separator);
-      lines.add("Year Total Hours         |  " + formatDouble4Digit(totalHours) + "   |");
-      lines.add("Average Hours Per Week   |  " + formatDouble4Digit(totalHoursExcludingCurrent / numWeeks) + "   |");
-      lines.add("Year Total Full Weeks    |     " + numWeeks + "      |");
-      lines.add(separator);
-      lines.add("");
+      lines.addAll(headerLines);
       lines.addAll(tmpLines);
+      
+
       return lines;
     }
   }
@@ -429,7 +444,11 @@ public class TimeTracker {
     public List<String> print(boolean isOpenCurWeek) {
       List<String> lines = new ArrayList<String>();
       lines.add("");
-      lines.add("Work Week " + weekNum);
+      if (isOpenCurWeek) {
+        lines.add("Work Week " + weekNum + " - Current Week");
+      } else {
+        lines.add("Work Week " + weekNum);
+      }
       lines.add(SEPARATOR);
       double numCompletedDays = 0;
       for (WorkDay day : days.values()) {
@@ -443,7 +462,7 @@ public class TimeTracker {
       totalBuilder.append("| " + formatDouble(getHours()) + "  |");
       lines.add(totalBuilder.toString());
       lines.add(SEPARATOR);
-      if (isOpenCurWeek) {
+      if (isOpenCurWeek && getHours() != 0d) {
         StringBuilder expected = fill("Expected Total", 36);
         double expectedHours = numCompletedDays * 9.25;
         expected.append("| " + formatDouble(expectedHours) + "  |");
