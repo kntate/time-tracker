@@ -94,8 +94,7 @@ public class TimeTracker {
     week.addDay(today, workDay);
   }
 
-  public static void input(String dateStr, WorkYear year, String inTime, String outTime)
-      throws NumberFormatException, IOException {
+  public static void input(String dateStr, WorkYear year, String inTime, String outTime) throws IOException {
 
     LocalDate parsedDate = LocalDate.parse(dateStr.trim(), formatter);
     TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
@@ -147,7 +146,7 @@ public class TimeTracker {
         }
 
         if (StringUtils.startsWithAny(line, "Date", "---", "Week", "   ", "Average", "Year", " ", "Expected", "Ahead",
-            "Behind") || StringUtils.isBlank(line)) {
+            "Behind", "Remaining") || StringUtils.isBlank(line)) {
           continue;
         }
         String[] split = StringUtils.split(line, "|");
@@ -163,6 +162,9 @@ public class TimeTracker {
         if (split.length > 2) {
           String outTimeStr = split[2].trim();
           outTime = parseTime(outTimeStr);
+          if (split.length != 4) {
+            System.out.println(outTime);
+          }
         }
         WorkDay day = new WorkDay(parsedDate, inTime, outTime);
         if (week != null) {
@@ -462,11 +464,16 @@ public class TimeTracker {
       totalBuilder.append("| " + formatDouble(getHours()) + "  |");
       lines.add(totalBuilder.toString());
       lines.add(SEPARATOR);
-      if (isOpenCurWeek && getHours() != 0d) {
+      if (isOpenCurWeek && getHours() != 0d && getHours() < 46d) {
         StringBuilder expected = fill("Expected Total", 36);
         double expectedHours = numCompletedDays * 9.25;
         expected.append("| " + formatDouble(expectedHours) + "  |");
         lines.add(expected.toString());
+        lines.add(SEPARATOR);
+        
+        StringBuilder remaining = fill("Remaining", 41);
+        remaining.append("| " + formatDouble(46d - getHours()) + "  |");        
+        lines.add(remaining.toString());
         lines.add(SEPARATOR);
 
         boolean isAhead = expectedHours < getHours();
@@ -531,6 +538,30 @@ public class TimeTracker {
         numStr = "0" + numStr;
       }
       return numStr;
+    }
+
+    public double getQuarterCount() {
+      return quarterCount;
+    }
+
+    public void setQuarterCount(double quarterCount) {
+      this.quarterCount = quarterCount;
+    }
+
+    public Integer getHour() {
+      return hour;
+    }
+
+    public void setHour(Integer hour) {
+      this.hour = hour;
+    }
+
+    public Integer getMinute() {
+      return minute;
+    }
+
+    public void setMinute(Integer minute) {
+      this.minute = minute;
     }
   }
 
