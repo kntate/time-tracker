@@ -245,17 +245,18 @@ public class TimeTracker {
 
 
       }
-      
+
 
 
       List<String> headerLines = new ArrayList<String>();
       headerLines.add(separator);
       headerLines.add("Year Total Hours         |  " + formatDouble4Digit(totalHours) + "   |");
-      headerLines.add("Average Hours Per Week   |  " + formatDouble4Digit(totalHoursExcludingCurrent / numWeeks) + "   |");
+      headerLines
+          .add("Average Hours Per Week   |  " + formatDouble4Digit(totalHoursExcludingCurrent / numWeeks) + "   |");
       headerLines.add("Year Total Full Weeks    |     " + numWeeks + "      |");
       headerLines.add(separator);
       headerLines.add("");
-      
+
       tmpLines.add(" ");
       tmpLines.add(" ");
       tmpLines.add(" ");
@@ -264,12 +265,12 @@ public class TimeTracker {
       if (currentWeek != null) {
         tmpLines.addAll(currentWeek.print(true));
       }
-      
-      
+
+
       List<String> lines = new ArrayList<String>();
       lines.addAll(headerLines);
       lines.addAll(tmpLines);
-      
+
 
       return lines;
     }
@@ -472,9 +473,9 @@ public class TimeTracker {
         expected.append("| " + formatDouble(expectedHours) + "  |");
         lines.add(expected.toString());
         lines.add(SEPARATOR);
-        
+
         StringBuilder remaining = fill("Remaining", 41);
-        remaining.append("| " + formatDouble(46d - getHours()) + "  |");        
+        remaining.append("| " + formatDouble(46d - getHours()) + "  |");
         lines.add(remaining.toString());
         lines.add(SEPARATOR);
 
