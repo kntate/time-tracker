@@ -261,7 +261,9 @@ public class TimeTracker {
       tmpLines.add(" ");
       tmpLines.addAll(headerLines);
       WorkWeek currentWeek = weeks.get(getCurrentWeekNum());
-      tmpLines.addAll(currentWeek.print(true));
+      if (currentWeek != null) {
+        tmpLines.addAll(currentWeek.print(true));
+      }
       
       
       List<String> lines = new ArrayList<String>();
