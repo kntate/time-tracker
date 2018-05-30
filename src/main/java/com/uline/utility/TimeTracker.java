@@ -129,6 +129,18 @@ public class TimeTracker {
     year.addWeek(weekNum, week);
   }
 
+  public static void addHoliday(String dateStr, WorkYear year) {
+    LocalDate parsedDate = LocalDate.parse(dateStr.trim(), formatter);
+    TemporalField woy = WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear();
+    Integer weekNum = parsedDate.get(woy);
+    WorkWeek week = year.getWeek(weekNum);
+
+    WorkDay workDay = new WorkDay(parsedDate, new WorkInterval());
+    week.addDay(parsedDate, workDay);
+
+    year.addWeek(weekNum, week);
+  }
+
   public static class FileParser {
     public WorkYear parseYear(Integer currentWeekNum, LocalDate today) throws IOException {
       FileUtils.copyFile(new File(DATA_FILE), new File(DATA_FILE + ".bak"));
@@ -152,23 +164,29 @@ public class TimeTracker {
         String[] split = StringUtils.split(line, "|");
         String dateStr = split[0].trim();
         String inTimeStr = split[1].trim();
-
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE MM/dd/yyyy");
         LocalDate parsedDate = LocalDate.parse(dateStr, formatter);
 
-        TimeInstance inTime = parseTime(inTimeStr);
 
-        TimeInstance outTime = null;
-        if (split.length > 2) {
-          String outTimeStr = split[2].trim();
-          outTime = parseTime(outTimeStr);
-          if (split.length != 4) {
-            System.out.println(outTime);
+        if (inTimeStr.equals("HOLIDAY")) {
+          WorkDay workDay = new WorkDay(parsedDate, new WorkInterval());
+          week.addDay(parsedDate, workDay);
+        } else if (inTimeStr.equals("PTO")) {
+          WorkDay workDay = new WorkDay(parsedDate, new WorkInterval(new Double(split[3])));
+          week.addDay(parsedDate, workDay);
+        } else {
+
+          TimeInstance inTime = parseTime(inTimeStr);
+
+          TimeInstance outTime = null;
+          if (split.length > 2) {
+            String outTimeStr = split[2].trim();
+            outTime = parseTime(outTimeStr);
           }
-        }
-        WorkDay day = new WorkDay(parsedDate, inTime, outTime);
-        if (week != null) {
-          week.addDay(parsedDate, day);
+          WorkDay day = new WorkDay(parsedDate, inTime, outTime);
+          if (week != null) {
+            week.addDay(parsedDate, day);
+          }
         }
       }
 
@@ -247,7 +265,6 @@ public class TimeTracker {
       }
 
 
-
       List<String> headerLines = new ArrayList<String>();
       headerLines.add(separator);
       headerLines.add("Year Total Hours         |  " + formatDouble4Digit(totalHours) + "   |");
@@ -282,12 +299,15 @@ public class TimeTracker {
     boolean isPto;
     Double hours = 0d;
     boolean isOpen;
+    boolean isHoliday;
+
 
     public WorkInterval(TimeInstance inTime, TimeInstance outTime) {
       super();
       this.inTime = inTime;
       this.outTime = outTime;
       isPto = false;
+      isHoliday = false;
 
       if (outTime == null) {
         isOpen = true;
@@ -301,6 +321,13 @@ public class TimeTracker {
       this.hours = hours;
       isPto = true;
       isOpen = false;
+    }
+
+    public WorkInterval() {
+      this.hours = 8d;
+      isPto = false;
+      isOpen = false;
+      isHoliday = true;
     }
 
     public void open() {
@@ -317,6 +344,10 @@ public class TimeTracker {
 
     public Double getHours() {
       return hours;
+    }
+
+    public boolean isHoliday() {
+      return isHoliday;
     }
 
   }
@@ -383,12 +414,14 @@ public class TimeTracker {
           line = dateText + " |   " + workInterval.inTime.print();
         } else if (workInterval.isPto) {
           line = dateText + " |    PTO     |    PTO      | " + formatDouble(workInterval.getHours()) + "  |";
+        } else if (workInterval.isHoliday()) {
+          line = dateText + " |  HOLIDAY   |  HOLIDAY    | " + formatDouble(workInterval.getHours()) + "  |";
         } else {
           line = dateText + " |   " + workInterval.inTime.print() + "    |   " + workInterval.outTime.print()
               + "     | " + formatDouble(workInterval.getHours()) + "  |";
         }
         lines.add(line);
-        dateText = StringUtils.repeat(" ", dateText.length());
+        //dateText = StringUtils.repeat(" ", dateText.length());
       }
 
       return lines;

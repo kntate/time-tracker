@@ -134,6 +134,20 @@ public class TimeTrackerController {
     }
     return getPrint(year);
   }
+  
+  @GetMapping("/holiday")
+  @ResponseBody
+  public String holiday(@RequestParam(name = "date", required = false) String date,
+      @RequestParam(name = "dryRun", required = false) boolean dryRun) throws IOException {
+
+    WorkYear year = getYear();
+
+    TimeTracker.addHoliday(date + "/" + year.getToday().getYear(), year);
+    if (!dryRun) {
+      year.printToFile();
+    }
+    return getPrint(year);
+  }
 
   @GetMapping("/remove")
   @ResponseBody
