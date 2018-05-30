@@ -421,7 +421,6 @@ public class TimeTracker {
               + "     | " + formatDouble(workInterval.getHours()) + "  |";
         }
         lines.add(line);
-        //dateText = StringUtils.repeat(" ", dateText.length());
       }
 
       return lines;
