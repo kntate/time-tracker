@@ -85,8 +85,19 @@ public class TimeTracker {
 
   public static void yesterday(LocalDate today, WorkWeek week, String inTime, String outTime) throws IOException {
     LocalDate yesterday = today.minusDays(1);
-    WorkDay workDay = new WorkDay(yesterday, FileParser.parseTime(inTime), FileParser.parseTime(outTime));
-    week.addDay(yesterday, workDay);
+    
+    if (StringUtils.isBlank(outTime)) {
+      throw new IllegalArgumentException("Error, outTime is required!");
+    }
+    
+    if (StringUtils.isBlank(inTime)) {
+      WorkDay yesterdayWorkDay = week.getDay(yesterday);
+      yesterdayWorkDay.endDay(FileParser.parseTime(outTime));
+    } else {
+      WorkDay workDay = new WorkDay(yesterday, FileParser.parseTime(inTime), FileParser.parseTime(outTime));
+      week.addDay(yesterday, workDay);
+    }
+    
   }
 
   public static void today(LocalDate today, WorkWeek week, String inTime, String outTime) throws IOException {
@@ -158,7 +169,7 @@ public class TimeTracker {
         }
 
         if (StringUtils.startsWithAny(line, "Date", "---", "Week", "   ", "Average", "Year", " ", "Expected", "Ahead",
-            "Behind", "Remaining") || StringUtils.isBlank(line)) {
+            "Behind", "Remaining", "Hours") || StringUtils.isBlank(line)) {
           continue;
         }
         String[] split = StringUtils.split(line, "|");
@@ -268,9 +279,14 @@ public class TimeTracker {
       List<String> headerLines = new ArrayList<String>();
       headerLines.add(separator);
       headerLines.add("Year Total Hours         |  " + formatDouble4Digit(totalHours) + "   |");
+      headerLines.add("Hours over 45 for Year   |  " + formatDouble4Digit(totalHours - 45 * numWeeks) + "   |");
       headerLines
           .add("Average Hours Per Week   |  " + formatDouble4Digit(totalHoursExcludingCurrent / numWeeks) + "   |");
-      headerLines.add("Year Total Full Weeks    |     " + numWeeks + "      |");
+      if (numWeeks < 10) {
+        headerLines.add("Year Total Full Weeks    |     " + numWeeks + "      |");
+      } else {
+        headerLines.add("Year Total Full Weeks    |    " + numWeeks + "      |");
+      }
       headerLines.add(separator);
       headerLines.add("");
 
