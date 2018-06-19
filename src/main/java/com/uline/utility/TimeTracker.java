@@ -260,7 +260,9 @@ public class TimeTracker {
 
       Double totalHours = 0d;
       Double totalHoursExcludingCurrent = 0d;
+      Double currentWeekHours = 0d;
       Integer numWeeks = 0;
+      boolean isCurWeekOpen = true;
       for (WorkWeek week : weeks.values()) {
         boolean isOpenCurWeek = true;
         if (!week.getWeekNum().equals(getCurrentWeekNum()) || week.hasCompletedDay(DayOfWeek.FRIDAY)) {
@@ -268,18 +270,30 @@ public class TimeTracker {
           numWeeks++;
           isOpenCurWeek = false;
         }
+        
+        if (week.getWeekNum().equals(getCurrentWeekNum()) && week.hasCompletedDay(DayOfWeek.FRIDAY)){
+          isCurWeekOpen = false;
+          currentWeekHours =  week.getHours();
+        }
+        
+        if (week.getWeekNum().equals(getCurrentWeekNum())){
+          currentWeekHours =  week.getHours();
+        }
+        
         tmpLines.add("");
         tmpLines.addAll(week.print(isOpenCurWeek));
         totalHours += week.getHours();
-
-
       }
 
 
       List<String> headerLines = new ArrayList<String>();
       headerLines.add(separator);
       headerLines.add("Year Total Hours         |  " + formatDouble4Digit(totalHours) + "   |");
-      headerLines.add("Hours over 45 for Year   |  " + formatDouble4Digit(totalHours - 45 * numWeeks) + "   |");
+      if (!isCurWeekOpen) {
+        headerLines.add("Hours over 45 for Year   |  " + formatDouble4Digit(totalHours - 45 * numWeeks) + "   |");
+      } else {
+        headerLines.add("Hours over 45 for Year   |  " + formatDouble4Digit((totalHours - currentWeekHours) - 45 * (numWeeks)) + "   |");
+      }
       headerLines
           .add("Average Hours Per Week   |  " + formatDouble4Digit(totalHoursExcludingCurrent / numWeeks) + "   |");
       if (numWeeks < 10) {
