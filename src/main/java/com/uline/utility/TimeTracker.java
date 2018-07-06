@@ -518,7 +518,15 @@ public class TimeTracker {
       }
       lines.add(SEPARATOR);
       double numCompletedDays = 0;
+      WorkDay sunday = days.get(DayOfWeek.SUNDAY.getValue());
+      if (sunday != null) {
+        lines.addAll(sunday.print());
+      }
+          
       for (WorkDay day : days.values()) {
+        if(DayOfWeek.SUNDAY.equals(day.date.getDayOfWeek())) {
+          continue;
+        }
         lines.addAll(day.print());
         if (day.isFinished()) {
           numCompletedDays++;
