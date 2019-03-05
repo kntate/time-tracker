@@ -127,6 +127,9 @@ public class TimeTrackerController {
       @RequestParam(name = "dryRun", required = false) boolean dryRun) throws IOException {
 
     WorkYear year = getYear();
+	if (hours == null){
+		hours = 8;
+	}
 
     TimeTracker.addPto(date + "/" + year.getToday().getYear(), year, hours);
     if (!dryRun) {
