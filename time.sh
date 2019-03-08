@@ -1,4 +1,5 @@
-BASE_URL="http://localhost:8080/api"
+#!/usr/bin/env bash
+BASE_URL="http://localhost:8754/api"
 
 if [ "$1" == "print" ]; then
 	curl ${BASE_URL}/print
@@ -36,4 +37,8 @@ if [ "$1" == "pto" ]; then
 	exit
 fi
 
-mvn clean install -f /c/workspaces/g2/time-tracker/pom.xml ;java -jar /c/workspaces/g2/time-tracker/target/time-tracker-0.0.1-SNAPSHOT.jar
+if [ "$1" == "build" ]; then
+	mvn clean install -f /home/ktate/misc/code/time-tracker/pom.xml
+fi
+
+nohup java -jar /home/ktate/misc/code/time-tracker/target/time-tracker-0.0.1-SNAPSHOT.jar > /home/ktate/misc/code/time-tracker/logs/time.log &

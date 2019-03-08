@@ -72,6 +72,7 @@ public class GitRepoServiceTest {
         String wmsUtilities = "58b3712e-d332-4185-9877-463fd5ce25e1";
         String shippingDoc = "848f0456-ce41-4478-a59d-6de84f8386e1";
         String as400api = "406311d4-cf96-4dc7-829b-381305bf170d";
+        String wmsApp = "406311d4-cf96-4dc7-829b-381305bf170d";
         String[] repoIds = {shippingDoc};
 
         //String[] repoIds = {"981f004b-ad03-43d3-a835-c46464b6762b"}; // po-services

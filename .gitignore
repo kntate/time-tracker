@@ -1,7 +1,9 @@
 /.settings/
 /target/
+/logs/
 /.classpath
 /.project
 /publish.properties
 /.factorypath
 /.apt_generated/
+*.iml

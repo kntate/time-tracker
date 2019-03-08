@@ -23,7 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class TimeTracker {
 
-  private static final String DATA_FILE = "/data/time/" + LocalDate.now().getYear() + "/data.txt";
+  private static final String DATA_FILE = "/home/ktate/misc/code/time-tracker/data/time/" + LocalDate.now().getYear() + "/data.txt";
   private static final String DATE_FORMAT = "MM/dd/yyyy";
   private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DATE_FORMAT);
 
